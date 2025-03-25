@@ -6,23 +6,10 @@ def concat_datasets(mems_dict,recon_output_dir, init_date , fin_date):
     datasets_ens = []
     for ens, mem_list in mems_dict.items():
         datasets_member = []
-        for n_member, member in enumerate(mem_list):
-            # truth_path = f'gs://leap-persistent/abbysh/pco2_all_members_1982-2023/00_regridded_members/{ens}/{member}/{ens}.{member.split("_")[-1]}.Omon.zarr'
-
-            # data_dir = f"{MLinputs_path}/{ens}/{member}"
-            # fname = f"MLinput_{ens}_{member.split('_')[-1]}_mon_1x1_{init_date}_{fin_date}.pkl"
-            # file_path = f"{data_dir}/{fname}"
-            
+        for n_member, member in enumerate(mem_list):          
             recon_dir = f"{recon_output_dir}/{ens}/{member}"    
-            # recon_path = f"{recon_dir}/recon_pC02residual_{ens}_{member}_mon_1x1_{init_date}_{fin_date}.zarr"
             recon_path = f"{recon_dir}/recon_pCO2_{ens}_{member}_mon_1x1_{init_date}_{fin_date}.zarr"
-            # recon_path = "gs://leap-persistent/Mukkke/pco2_residual/nmse/post02_xgb/reconstructions/CESM2/member_r10i1p1f1/recon_pC02residual_CESM2_member_r10i1p1f1_mon_1x1_200401_202312.zarr"
             kwargs = dict(chunks={'time':-1})
-            # truth = xr.open_mfdataset(truth_path, engine='zarr',**kwargs).spco2 ## this is the testbed truth, RAW testbed pco2
-            # recon = xr.open_mfdataset(recon_path, engine='zarr',**kwargs).pCO2_recon_unseen ## this is the reconstructed pco2 AFTER pco2-T is added back
-
-            # print(xr.open_zarr(truth_path, consolidated=True))
-
             truth = xr.open_zarr(recon_path, consolidated=True)["pCO2_truth"]
             recon = xr.open_zarr(recon_path, consolidated=True)["pCO2_recon_unseen"]
             
@@ -31,7 +18,6 @@ def concat_datasets(mems_dict,recon_output_dir, init_date , fin_date):
             recon = recon.assign_coords(status='reconstructed')
 
             # make sure they have the same time coordinates
-            # truth = truth.assign_coords(time=recon['time'].data)
             common_time = np.intersect1d(truth['time'], recon['time'])
             truth = truth.sel(time=common_time)
             recon = recon.sel(time=common_time)

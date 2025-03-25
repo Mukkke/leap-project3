@@ -35,8 +35,6 @@ def detrend_fast_parallel(data, dim='time', n_jobs=-1):
     results = Parallel(n_jobs=n_jobs, backend="multiprocessing")(
         delayed(process_detrend_column)(arr2d, i) for i in range(arr2d.shape[1])
     )
-    # results = Parallel(n_jobs=n_jobs, backend="threading")(delayed(process_column)(i) for i in range(arr2d.shape[1]))
-    # results = Parallel(n_jobs=n_jobs)(delayed(process_column)(i) for i in range(arr2d.shape[1]))
     out2d = np.column_stack(results)
     out_arr = out2d.reshape(original_shape)
     out_arr = np.moveaxis(out_arr, 0, axis)
@@ -147,20 +145,11 @@ def seasonal_cycle_fast_parallel(data, dim='time', period=12, n_jobs=-1):
 def decompose_stl_fast_parallel(da, var_name, lo_frac=0.1, lo_delta=0.01, it=3, period=12, n_jobs=-1):
     data = xr.open_zarr(da, consolidated=True)
     data = data.dropna(dim="time", how="all")
-    # print("Start to calculate detrend...")
     data_detrend = detrend_fast_parallel(data[var_name], dim='time', n_jobs=n_jobs)
-    # print("Start to calculate seasonal...")
     data_seasonal = seasonal_cycle_fast_parallel(data_detrend, dim='time', period=period, n_jobs=n_jobs)
     data_deseason = data_detrend - data_seasonal
-    # data_lowess = lowess_fast_parallel(data_deseason, dim='time', lo_frac=lo_frac, lo_delta=lo_delta, it=it, n_jobs=n_jobs)
-    # data_residual = data_deseason - data_lowess
-    # data_residual_low = lowess_fast_parallel(data_residual, dim='time', lo_frac=lo_frac, lo_delta=lo_delta, it=it, n_jobs=n_jobs)
-    # print("Start to calculate lowess...")
     data_lowess = savgol_smoothing(data_deseason, dim='time')
-    
-    # Compute residuals
     data_residual = data_deseason - data_lowess
-    # Optionally, you could also smooth the residual if needed:
     data_residual_low = savgol_smoothing(data_residual, dim='time')
         
     var_name_spco2 = 'spco2'
