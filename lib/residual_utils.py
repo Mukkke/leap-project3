@@ -659,7 +659,7 @@ def save_clean_data(df, data_output_dir, ens, member, dates):
     
 #     model_dir = f"{model_output_dir}/{ens}/{member}"
 
-#     model_fname = f"{model_dir}/model_pC02_2D_{ens}_{member.split('_')[-1]}_mon_1x1_{init_date}_{fin_date}.json"
+#     model_fname = f"{model_dir}/model_pCO2_2D_{ens}_{member.split('_')[-1]}_mon_1x1_{init_date}_{fin_date}.json"
 
 #     Path(model_dir).mkdir(parents=True, exist_ok=True)
 #     model.save_model(model_fname)
@@ -712,7 +712,7 @@ def save_model(model, dates, model_output_dir, ens, member):
     fin_date = f"{dates[-1].year}{dates[-1].month:02d}"
 
     # Define target GCS path
-    destination_blob_name = f"{gcs_prefix}/model_pC02_2D_{ens}_{member.split('_')[-1]}_mon_1x1_{init_date}_{fin_date}.json"
+    destination_blob_name = f"{gcs_prefix}/model_pCO2_2D_{ens}_{member.split('_')[-1]}_mon_1x1_{init_date}_{fin_date}.json"
 
     # Step 1: Save model to a temporary file
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as temp_model_file:
@@ -738,6 +738,54 @@ def save_model(model, dates, model_output_dir, ens, member):
     print("Model saving process complete.")
 
 
+
+import os
+from pathlib import Path
+
+def save_model_locally(model, dates, local_output_dir, ens, member):
+    """
+    Saves the trained XGBoost model to a local directory.
+
+    Parameters
+    ----------
+    model : xgboost.sklearn.XGBRegressor
+        Trained XGBoost model.
+        
+    dates : pandas.DatetimeIndex
+        List of dataset dates.
+        
+    local_output_dir : str
+        Local directory to store the model (e.g., "output/model_saved").
+        
+    ens : str
+        Earth System Model name.
+        
+    member : str
+        Member index (e.g., 'member_r1i1p1f1').
+    """
+
+    print("Starting local model saving process...")
+
+    # Ensure the output directory exists
+    Path(local_output_dir).mkdir(parents=True, exist_ok=True)
+
+    # Format time information
+    init_date = f"{dates[0].year}{dates[0].month:02d}"
+    fin_date = f"{dates[-1].year}{dates[-1].month:02d}"
+
+    # Define the local filename
+    model_filename = f"model_pCO2_2D_{ens}_{member.split('_')[-1]}_mon_1x1_{init_date}_{fin_date}.json"
+    model_path = os.path.join(local_output_dir, model_filename)
+
+    # Save the model
+    try:
+        model.save_model(model_path)
+        print(f"Model successfully saved locally at: {model_path}")
+    except Exception as e:
+        print(f"Error saving model: {e}")
+        return
+
+    print("Local model saving process complete.")
 
 
 
@@ -774,7 +822,7 @@ def save_recon(DS_recon, dates, recon_output_dir, ens, member):
     
     recon_dir = f"{recon_output_dir}/{ens}/{member}"
     
-    recon_fname = f"{recon_dir}/recon_pC02residual_{ens}_{member}_mon_1x1_{init_date}_{fin_date}.zarr"
+    recon_fname = f"{recon_dir}/recon_pCO2residual_{ens}_{member}_mon_1x1_{init_date}_{fin_date}.zarr"
 
     print(recon_fname)
     DS_recon.to_zarr(f'{recon_fname}', mode='w')
@@ -809,7 +857,7 @@ def calc_recon_pco2(regridded_members_dir, pco2_recon_dir, selected_mems_dict, i
             print('pco2T path:',pco2T_path)    
 
             ### Path to reconstruction (ML output from notebook 02), where pCO2-residual was reconstructed
-            pco2D_path = f"{pco2_recon_dir}/{ens}/{member}/recon_pC02residual_{ens}_{member}_mon_1x1_{init_date}_{fin_date}.zarr"
+            pco2D_path = f"{pco2_recon_dir}/{ens}/{member}/recon_pCO2residual_{ens}_{member}_mon_1x1_{init_date}_{fin_date}.zarr"
             print('pco2D path:',pco2D_path)
 
             ### Path to save calculated pCO2 (reconstructed pCO2-residual PLUS pCO2-T: Total pCO2 =  pCO2-residual + pCO2-T)
@@ -818,19 +866,19 @@ def calc_recon_pco2(regridded_members_dir, pco2_recon_dir, selected_mems_dict, i
 
             ### Loading pCO2-T and reconstructed pCO2-residual:
             pco2T_series = xr.open_mfdataset(pco2T_path,engine='zarr').pco2_T.transpose("time","ylat","xlon").sel(time=slice(init_date_sel, fin_date_sel))
-            pco2_ml_output = xr.open_mfdataset(pco2D_path,engine='zarr')
-
+            pco2_ml_output = xr.open_zarr(pco2D_path) #, consolidated=False, storage_options={"token": "cloud"}, group=None)
+            
             ### unseen reconstructed pCO2-Residual from XGB
             pco2D_unseen_series = pco2_ml_output.pCO2_recon_unseen.transpose("time","ylat","xlon")
             
             ### Full (seen and unseen) reconstructed pCO2-Residual from XGB
             pco2D_full_series = pco2_ml_output.pCO2_recon_full.transpose("time","ylat","xlon")
             
-            ### training set for pco2 residual
-            pco2D_train_series = pco2_ml_output.pCO2_recon_train.transpose("time","ylat","xlon")
+            # ### training set for pco2 residual
+            # pco2D_train_series = pco2_ml_output.pCO2_recon_train.transpose("time","ylat","xlon")
             
-            ### testing set for pco2 residual
-            pco2D_test_series = pco2_ml_output.pCO2_recon_test.transpose("time","ylat","xlon")
+            # ### testing set for pco2 residual
+            # pco2D_test_series = pco2_ml_output.pCO2_recon_test.transpose("time","ylat","xlon")
 
             pco2D_truth = pco2_ml_output.pCO2_truth.transpose("time","ylat","xlon")
             
@@ -840,15 +888,15 @@ def calc_recon_pco2(regridded_members_dir, pco2_recon_dir, selected_mems_dict, i
             ### Total pCO2 =  pCO2-residual + pCO2-T
             pco2_unseen = pco2T_series + pco2D_unseen_series   
             pco2_full =  pco2T_series + pco2D_full_series
-            pco2_train =  pco2T_series + pco2D_train_series
-            pco2_test =  pco2T_series + pco2D_test_series
+            # pco2_train =  pco2T_series + pco2D_train_series
+            # pco2_test =  pco2T_series + pco2D_test_series
             pco2_truth = pco2T_series + pco2D_truth
 
             ### Creating xarray of pco2 ML output, but with temperature added back 
             comp = xr.Dataset({'pCO2_recon_unseen':(["time","ylat","xlon"],pco2_unseen.data), 
                             'pCO2_recon_full':(["time","ylat","xlon"],pco2_full.data),
-                              'pCO2_recon_train':(["time","ylat","xlon"],pco2_train.data),
-                              'pCO2_recon_test':(["time","ylat","xlon"],pco2_test.data),
+                              # 'pCO2_recon_train':(["time","ylat","xlon"],pco2_train.data),
+                              # 'pCO2_recon_test':(["time","ylat","xlon"],pco2_test.data),
                               'pCO2_truth':(["time","ylat","xlon"],pco2_truth.data)
                               },
                             coords={'time': (['time'],pco2T_series.time.values),
