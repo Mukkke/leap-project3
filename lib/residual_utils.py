@@ -857,8 +857,8 @@ def calc_recon_pco2(regridded_members_dir, pco2_recon_dir, selected_mems_dict, i
             print('pco2T path:',pco2T_path)    
 
             ### Path to reconstruction (ML output from notebook 02), where pCO2-residual was reconstructed
-            pco2D_path = f"{pco2_recon_dir}/{ens}/{member}/recon_pCO2residual_{ens}_{member}_mon_1x1_{init_date}_{fin_date}.zarr"
-            print('pco2D path:',pco2D_path)
+            pCO2R_path = f"{pco2_recon_dir}/{ens}/{member}/recon_pCO2residual_{ens}_{member}_mon_1x1_{init_date}_{fin_date}.zarr"
+            print('pCO2R path:',pCO2R_path)
 
             ### Path to save calculated pCO2 (reconstructed pCO2-residual PLUS pCO2-T: Total pCO2 =  pCO2-residual + pCO2-T)
             file_out = f"{pco2_recon_dir}/{ens}/{member}/recon_pCO2_{ens}_{member}_mon_1x1_{init_date}_{fin_date}.zarr" # change this to just pco2
@@ -866,31 +866,31 @@ def calc_recon_pco2(regridded_members_dir, pco2_recon_dir, selected_mems_dict, i
 
             ### Loading pCO2-T and reconstructed pCO2-residual:
             pco2T_series = xr.open_mfdataset(pco2T_path,engine='zarr').pco2_T.transpose("time","ylat","xlon").sel(time=slice(init_date_sel, fin_date_sel))
-            pco2_ml_output = xr.open_zarr(pco2D_path) #, consolidated=False, storage_options={"token": "cloud"}, group=None)
+            pco2_ml_output = xr.open_zarr(pCO2R_path) #, consolidated=False, storage_options={"token": "cloud"}, group=None)
             
             ### unseen reconstructed pCO2-Residual from XGB
-            pco2D_unseen_series = pco2_ml_output.pCO2_recon_unseen.transpose("time","ylat","xlon")
+            pCO2R_unseen_series = pco2_ml_output.pCO2_recon_unseen.transpose("time","ylat","xlon")
             
             ### Full (seen and unseen) reconstructed pCO2-Residual from XGB
-            pco2D_full_series = pco2_ml_output.pCO2_recon_full.transpose("time","ylat","xlon")
+            pCO2R_full_series = pco2_ml_output.pCO2_recon_full.transpose("time","ylat","xlon")
             
             # ### training set for pco2 residual
-            # pco2D_train_series = pco2_ml_output.pCO2_recon_train.transpose("time","ylat","xlon")
+            # pCO2R_train_series = pco2_ml_output.pCO2_recon_train.transpose("time","ylat","xlon")
             
             # ### testing set for pco2 residual
-            # pco2D_test_series = pco2_ml_output.pCO2_recon_test.transpose("time","ylat","xlon")
+            # pCO2R_test_series = pco2_ml_output.pCO2_recon_test.transpose("time","ylat","xlon")
 
-            pco2D_truth = pco2_ml_output.pCO2_truth.transpose("time","ylat","xlon")
+            pCO2R_truth = pco2_ml_output.pCO2_truth.transpose("time","ylat","xlon")
             
             ### Get time coordinate correct
-            pco2T_series = pco2T_series.assign_coords({"time":("time",pco2D_unseen_series.time.data)})
+            pco2T_series = pco2T_series.assign_coords({"time":("time",pCO2R_unseen_series.time.data)})
 
             ### Total pCO2 =  pCO2-residual + pCO2-T
-            pco2_unseen = pco2T_series + pco2D_unseen_series   
-            pco2_full =  pco2T_series + pco2D_full_series
-            # pco2_train =  pco2T_series + pco2D_train_series
-            # pco2_test =  pco2T_series + pco2D_test_series
-            pco2_truth = pco2T_series + pco2D_truth
+            pco2_unseen = pco2T_series + pCO2R_unseen_series   
+            pco2_full =  pco2T_series + pCO2R_full_series
+            # pco2_train =  pco2T_series + pCO2R_train_series
+            # pco2_test =  pco2T_series + pCO2R_test_series
+            pco2_truth = pco2T_series + pCO2R_truth
 
             ### Creating xarray of pco2 ML output, but with temperature added back 
             comp = xr.Dataset({'pCO2_recon_unseen':(["time","ylat","xlon"],pco2_unseen.data), 
